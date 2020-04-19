@@ -7,7 +7,7 @@
 //Defines
 #define PLUGIN_NAME "[TF2] Fortressland"
 #define PLUGIN_DESCRIPTION "A Dungeon Land-like gamemode for Team Fortress 2."
-#define PLUGIN_VERSION "1.0.0"
+#define PLUGIN_VERSION "1.0.1"
 
 #define NO_MASTER -1
 
@@ -40,6 +40,9 @@ enum struct PlayerData
 
 	int points;
 	float pointstimer;
+
+	int curses;
+	float cursestimer;
 	
 	void Initialize(int client)
 	{
@@ -47,6 +50,8 @@ enum struct PlayerData
 		this.class[0] = '\0';
 		this.points = 0;
 		this.pointstimer = -1.0;
+		this.curses = 0;
+		this.cursestimer = -1.0;
 	}
 
 	void Reset()
@@ -55,6 +60,8 @@ enum struct PlayerData
 		this.class[0] = '\0';
 		this.points = 0;
 		this.pointstimer = -1.0;
+		this.curses = 0;
+		this.cursestimer = -1.0;
 	}
 	
 	void SetPoints(int value)
@@ -79,7 +86,6 @@ enum struct PlayerData
 	void SetClass(const char[] class)
 	{
 		strcopy(this.class, 32, class);
-
 		this.ApplyClass();
 	}
 
@@ -204,6 +210,11 @@ public void OnPluginStart()
 		LogMessage("Failed to create call: CBasePlayer::EquipWearable");
 	
 	delete gamedata;
+
+	int entity = -1; char class[64];
+	while ((entity = FindEntityByClassname(entity, "*")) != -1)
+		if (GetEntityClassname(entity, class, sizeof(class)))
+			OnEntityCreated(entity, class);
 }
 
 public void OnConfigsExecuted()
@@ -229,9 +240,21 @@ public Action Timer_UpdateHud(Handle timer)
 			
 			g_PlayerData[i].pointstimer = time + 1.0;
 		}
+
+		if (g_PlayerData[i].cursestimer == -1 || g_PlayerData[i].cursestimer != -1 && g_PlayerData[i].cursestimer <= time)
+		{
+			if (g_PlayerData[i].curses < 5)
+				g_PlayerData[i].curses++;
+
+			g_PlayerData[i].cursestimer = time + 20.0;
+		}
 		
 		g_PointsHud.SetParams(0.2, 0.8);
-		g_PointsHud.Send(i, "Points: %i", g_PlayerData[i].points);
+
+		if (i == g_DungeonMaster)
+			g_PointsHud.Send(i, "Cash: %i\nCurses: %i", g_PlayerData[i].points, g_PlayerData[i].curses);
+		else
+			g_PointsHud.Send(i, "Cash: %i", g_PlayerData[i].points);
 	}
 }
 
@@ -360,7 +383,7 @@ public void TF2_OnRoundEnd(int team, int winreason, int flagcaplimit, bool full_
 void FindDungeonMaster()
 {
 	g_DungeonMaster = GetRandomClient(true, true, true, 2);
-	//g_DungeonMaster = GetDrixevel();
+	g_DungeonMaster = GetDrixevel();
 	g_ZoneSize = 300.0;
 	
 	if (g_DungeonMaster < 1)
@@ -493,7 +516,7 @@ void OpenMobsMenu(int client)
 	Menu menu = new Menu(MenuHandler_SpawnMobs);
 	menu.SetTitle("Spawn a Mob:");
 
-	menu.AddItem("skeletons", "Spawn Skeletons (60 points)");
+	menu.AddItem("skeletons", "($60) Spawn Skeletons");
 	
 	menu.ExitBackButton = true;
 	menu.ExitButton = false;
@@ -571,10 +594,10 @@ void OpenBossesMenu(int client)
 	Menu menu = new Menu(MenuHandler_SpawnBosses);
 	menu.SetTitle("Spawn a Boss:");
 
-	menu.AddItem("horseman", "Spawn Horseman (250 points)");
-	menu.AddItem("monoculus", "Spawn Monoculus (300 points)");
-	menu.AddItem("skeletonking", "Spawn Skeleton King (400 points)");
-	menu.AddItem("merasmus", "Spawn Merasmus (500 points)");
+	menu.AddItem("horseman", "($250) Spawn Horseman");
+	menu.AddItem("monoculus", "($300) Spawn Monoculus");
+	menu.AddItem("skeletonking", "($400) Spawn Skeleton King");
+	menu.AddItem("merasmus", "($500) Spawn Merasmus");
 	
 	menu.ExitBackButton = true;
 	menu.ExitButton = false;
@@ -756,9 +779,9 @@ void OpenTrapsMenu(int client)
 	Menu menu = new Menu(MenuHandler_SpawnTraps);
 	menu.SetTitle("Spawn a Trap:");
 
-	menu.AddItem("mini_sentry", "Spawn a Mini Sentry");
-	menu.AddItem("sentry", "Spawn a Sentry");
-	menu.AddItem("controlled_sentry", "Spawn a Controlled Sentry");
+	menu.AddItem("mini_sentry", "($250) Spawn a Mini Sentry");
+	menu.AddItem("sentry", "($500) Spawn a Sentry");
+	menu.AddItem("controlled_sentry", "($1000) Spawn a Controlled Sentry");
 	
 	menu.ExitBackButton = true;
 	menu.ExitButton = false;
@@ -858,15 +881,15 @@ void OpenCursesMenu(int client)
 	Menu menu = new Menu(MenuHandler_SpawnCurses);
 	menu.SetTitle("Spawn a Curse:");
 
-	menu.AddItem("", "Curse of Poverty (Reset all points to 0)");
-	menu.AddItem("", "The Ember Curse (Light players on fire)");
-	menu.AddItem("", "The Desolation Bane (Half all players health)");
-	menu.AddItem("", "Curse of the Prison (Lock players in place)");
-	menu.AddItem("", "The Horror Hex (Scare all players)");
-	menu.AddItem("", "The Delirium Curse (Screen distortions)");
-	menu.AddItem("", "Vex of Poison (Poison all players)");
-	menu.AddItem("", "Curse of Chains (Slow all players)");
-	menu.AddItem("", "Glaciers Hex (Freeze all players)");
+	menu.AddItem("1", "Curse of Poverty (Reset all points to 0)");
+	menu.AddItem("2", "The Ember Curse (Light players on fire)");
+	menu.AddItem("3", "The Desolation Bane (Half all players health)");
+	menu.AddItem("4", "Curse of the Prison (Lock players in place)");
+	menu.AddItem("5", "The Horror Hex (Scare all players)");
+	menu.AddItem("6", "The Delirium Curse (Screen distortions)");
+	menu.AddItem("7", "Vex of Poison (Poison all players)");
+	menu.AddItem("8", "Curse of Chains (Slow all players)");
+	menu.AddItem("9", "Glaciers Hex (Freeze all players)");
 	
 	menu.ExitBackButton = true;
 	menu.ExitButton = false;
@@ -884,6 +907,15 @@ public int MenuHandler_SpawnCurses(Menu menu, MenuAction action, int param1, int
 			
 			char sInfo[32];
 			menu.GetItem(param2, sInfo, sizeof(sInfo));
+
+			if (g_PlayerData[param1].curses < 1)
+			{
+				OpenCursesMenu(param1);
+				return;
+			}
+
+			g_PlayerData[param1].curses--;
+			SpawnCurse(StringToInt(sInfo));
 
 			OpenCursesMenu(param1);
 		}
@@ -920,4 +952,117 @@ public Action Timer_DestroyBuilding(Handle timer, any data)
 	
 	SDKHooks_TakeDamage(entity, 0, 0, 99999.0);
 	return Plugin_Stop;
+}
+
+enum
+{
+	Curse_Poverty = 1,
+	Curse_Ember = 2,
+	Curse_Desolation = 3,
+	Curse_Prison = 4,
+	Curse_Horror = 5,
+	Curse_Delirium = 6,
+	Curse_Poison = 7,
+	Curse_Chains = 8,
+	Curse_Glaciers = 9,
+}
+
+#define	SHAKE_START 0				// Starts the screen shake for all players within the radius.
+#define	SHAKE_STOP 1				// Stops the screen shake for all players within the radius.
+#define	SHAKE_AMPLITUDE 2			// Modifies the amplitude of an active screen shake for all players within the radius.
+#define	SHAKE_FREQUENCY 3			// Modifies the frequency of an active screen shake for all players within the radius.
+#define	SHAKE_START_RUMBLEONLY 4	// Starts a shake effect that only rumbles the controller, no screen effect.
+#define	SHAKE_START_NORUMBLE 5		// Starts a shake that does NOT rumble the controller.
+
+void SpawnCurse(int curse_id)
+{
+	switch(curse_id)
+	{
+		case Curse_Poverty:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (i != g_DungeonMaster)
+					g_PlayerData[i].SetPoints(0);
+		}
+		case Curse_Ember:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					TF2_IgnitePlayer(i, g_DungeonMaster);
+		}
+		case Curse_Desolation:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					SetEntityHealth(i, GetClientHealth(i) / 2);
+		}
+		case Curse_Prison:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					TF2_StunPlayer(i, 10.0, 0.0, TF_STUNFLAGS_BIGBONK, g_DungeonMaster);
+		}
+		case Curse_Horror:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					TF2_StunPlayer(i, 10.0, 0.0, TF_STUNFLAGS_GHOSTSCARE, g_DungeonMaster);
+		}
+		case Curse_Delirium:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					ScreenShake(i, SHAKE_START, 50.0, 150.0, 10.0);
+		}
+		case Curse_Poison:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					TF2_MakeBleed(i, g_DungeonMaster, 10.0);
+		}
+		case Curse_Chains:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					TF2_StunPlayer(i, 10.0, 0.0, TF_STUNFLAGS_LOSERSTATE, g_DungeonMaster);
+		}
+		case Curse_Glaciers:
+		{
+			for (int i = 1; i <= MaxClients; i++)
+				if (IsClientInGame(i) && IsPlayerAlive(i) && i != g_DungeonMaster)
+					ServerCommand("sm_freeze #%i 10.0", GetClientUserId(i));
+		}
+	}
+}
+
+public void OnEntityCreated(int entity, const char[] classname)
+{
+	if (StrEqual(classname, "trigger_capture_area", false))
+	{
+		SDKHook(entity, SDKHook_StartTouch, OnTriggerTouch);
+		SDKHook(entity, SDKHook_Touch, OnTriggerTouch);
+		SDKHook(entity, SDKHook_EndTouch, OnTriggerTouch);
+	}
+}
+
+public Action OnTriggerTouch(int entity, int other)
+{
+	if (other < 0)
+		return Plugin_Continue;
+	
+	if (other > MaxClients)
+	{
+		char class[32];
+		GetEntityClassname(other, class, sizeof(class));
+
+		if (StrEqual(class, "headless_hatman", false) || StrEqual(class, "merasmus", false))
+			AcceptEntityInput(other, "Kill");
+			
+		return Plugin_Continue;
+	}
+	
+	if (other == g_DungeonMaster)
+		return Plugin_Stop;
+	
+	return Plugin_Continue;
 }
