@@ -383,7 +383,7 @@ public void TF2_OnRoundEnd(int team, int winreason, int flagcaplimit, bool full_
 void FindDungeonMaster()
 {
 	g_DungeonMaster = GetRandomClient(true, true, true, 2);
-	g_DungeonMaster = GetDrixevel();
+	//g_DungeonMaster = GetDrixevel();
 	g_ZoneSize = 300.0;
 	
 	if (g_DungeonMaster < 1)
