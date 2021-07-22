@@ -24,6 +24,9 @@
 static bool g_bInit;
 static StringMap g_hColors;
 static char g_sChatPrefix[64];
+static char g_sHighlight[32];
+static char g_sHighlight2[32];
+static char g_sHighlight3[32];
 
 static bool g_bIgnorePrefix;
 static int g_iAuthor;
@@ -41,6 +44,21 @@ static bool g_bSkipPlayers[MAXPLAYERS + 1];
 stock void CSetPrefix(const char[] prefix, any ...)
 {
 	VFormat(g_sChatPrefix, sizeof(g_sChatPrefix), prefix, 2);
+}
+
+stock void CSetHighlight(const char[] highlight, any ...)
+{
+	VFormat(g_sHighlight, sizeof(g_sHighlight), highlight, 2);
+}
+
+stock void CSetHighlight2(const char[] highlight, any ...)
+{
+	VFormat(g_sHighlight2, sizeof(g_sHighlight2), highlight, 2);
+}
+
+stock void CSetHighlight3(const char[] highlight, any ...)
+{
+	VFormat(g_sHighlight3, sizeof(g_sHighlight3), highlight, 2);
 }
 
 /*
@@ -126,8 +144,10 @@ stock void CPrintToChat(int client, const char[] message, any ...)
 stock void CPrintToChatEx(int client, int author, const char[] message, any ...)
 {
 	CSetNextAuthor(author);
+
 	char buffer[MAX_BUFFER_SIZE];
 	VFormat(buffer, sizeof(buffer), message, 4);
+
 	CPrintToChat(client, buffer);
 }
 
@@ -179,8 +199,10 @@ stock void CPrintToChatAll(const char[] message, any ...)
 stock void CPrintToChatAllEx(int author, const char[] message, any ...)
 {
 	CSetNextAuthor(author);
+
 	char buffer[MAX_BUFFER_SIZE];
 	VFormat(buffer, sizeof(buffer), message, 3);
+
 	CPrintToChatAll(buffer);
 }
 
@@ -232,8 +254,10 @@ stock void CPrintToChatTeam(int team, const char[] message, any ...)
 stock void CPrintToChatTeamEx(int team, int author, const char[] message, any ...)
 {
 	CSetNextAuthor(author);
+
 	char buffer[MAX_BUFFER_SIZE];
 	VFormat(buffer, sizeof(buffer), message, 4);
+
 	CPrintToChatTeam(team, buffer);
 }
 
@@ -293,8 +317,10 @@ stock void CPrintToChatAdmins(int bitflags, const char[] message, any ...)
 stock void CPrintToChatAdminsEx(int bitflags, int author, const char[] message, any ...)
 {
 	CSetNextAuthor(author);
+
 	char buffer[MAX_BUFFER_SIZE];
 	VFormat(buffer, sizeof(buffer), message, 4);
+
 	CPrintToChatTeam(bitflags, buffer);
 }
 
@@ -315,8 +341,9 @@ stock void CReplyToCommand(int client, const char[] message, any ...)
 	if (client != 0 && !IsClientInGame(client))
 		ThrowError("Client %d is not in game", client);
 
-	char buffer[MAX_BUFFER_SIZE];
 	SetGlobalTransTarget(client);
+
+	char buffer[MAX_BUFFER_SIZE];
 	VFormat(buffer, sizeof(buffer), message, 3);
 
 	AddPrefixAndDefaultColor(buffer, sizeof(buffer));
@@ -328,7 +355,13 @@ stock void CReplyToCommand(int client, const char[] message, any ...)
 		PrintToConsole(client, "%s", buffer);
 	}
 	else
-		CPrintToChat(client, "%s", buffer);
+	{
+		CProcessVariables(buffer, sizeof(buffer));
+		CAddWhiteSpace(buffer, sizeof(buffer));
+
+		SendPlayerMessage(client, buffer, g_iAuthor);
+		g_iAuthor = 0;
+	}
 }
 
 /*
@@ -910,6 +943,15 @@ stock void AddPrefixAndDefaultColor(char[] message, int size)
 		Format(message, size, "%s {default}%s", g_sChatPrefix, message);
 	else
 		Format(message, size, "%s", message);
+	
+	if (strlen(g_sHighlight) > 0)
+		ReplaceString(message, size, "{H1}", g_sHighlight);
+	
+	if (strlen(g_sHighlight2) > 0)
+		ReplaceString(message, size, "{H2}", g_sHighlight2);
+	
+	if (strlen(g_sHighlight3) > 0)
+		ReplaceString(message, size, "{H3}", g_sHighlight3);
 }
 
 stock void SendPlayerMessage(int client, char[] message, int author  = 0)
